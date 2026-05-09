@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Damm Logistic Optimizer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <header id="topbar" class="d-flex align-items-center px-4 gap-3 flex-shrink-0">
+    <div class="d-flex align-items-center gap-2">
+      <h1 class="fs-5 fw-bolder lh-1 mb-0">DAMM</h1>
+      <span class="subtitle">Logistic Optimizer</span>
+    </div>
+    <nav id="tabs" class="d-flex flex-fill justify-content-center gap-0">
+      <button class="tab active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+      <button class="tab" data-tab="routes"><i class="fas fa-route"></i> Rutas</button>
+      <button class="tab" data-tab="load"><i class="fas fa-truck"></i> Carga</button>
+      <button class="tab" data-tab="reverselog"><i class="fas fa-recycle"></i> Retorno</button>
+      <button class="tab" data-tab="recommendations"><i class="fas fa-lightbulb"></i> Recomendaciones</button>
+      <button class="tab" data-tab="data"><i class="fas fa-database"></i> Datos</button>
+    </nav>
+    <div class="d-flex gap-2">
+      <button id="importBtn" class="btn btn-sm"><i class="fas fa-file-import"></i> Importar CSV</button>
+      <button id="optimizeBtn" class="btn btn-primary btn-sm shadow-sm"><i class="fas fa-play"></i> Optimizar</button>
+    </div>
+  </header>
+
+  <main id="content" class="container-fluid py-4">
+
+    <!-- DASHBOARD -->
+    <section id="panel-dashboard" class="panel active">
+      <h2>Panel de Control</h2>
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)"><i class="fas fa-building"></i></div>
+            <span class="kpi-value" id="kpi-clients">0</span>
+            <span class="kpi-label">Clientes</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9)"><i class="fas fa-boxes"></i></div>
+            <span class="kpi-value" id="kpi-products">0</span>
+            <span class="kpi-label">Productos</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)"><i class="fas fa-map-marker-alt"></i></div>
+            <span class="kpi-value" id="kpi-stops">0</span>
+            <span class="kpi-label">Paradas Ruta</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)"><i class="fas fa-road"></i></div>
+            <span class="kpi-value" id="kpi-distance">0 km</span>
+            <span class="kpi-label">Distancia Total</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)"><i class="fas fa-pallet"></i></div>
+            <span class="kpi-value" id="kpi-pallets">0</span>
+            <span class="kpi-label">Pallets</span>
+          </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)"><i class="fas fa-chart-simple"></i></div>
+            <span class="kpi-value" id="kpi-load">0%</span>
+            <span class="kpi-label">Ocupación</span>
+          </div>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h5 class="card-title">Distribución de Clientes por Canal</h5><canvas id="chart-channel"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h5 class="card-title">Mezcla de Tipos de Producto</h5><canvas id="chart-product-mix"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h5 class="card-title">Ventanas Horarias</h5><canvas id="chart-timewindows"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="card h-100"><div class="card-body"><h5 class="card-title">Resumen de Recomendaciones</h5><div id="dashboard-rec-summary"><p class="text-muted text-center py-4 mb-0">Optimice la ruta para ver recomendaciones.</p></div></div></div></div>
+      </div>
+    </section>
+
+    <!-- ROUTES -->
+    <section id="panel-routes" class="panel">
+      <h2>Optimización de Rutas</h2>
+      <div class="d-flex gap-3 flex-wrap align-items-end bg-white rounded-3 shadow-sm border p-3 mb-4">
+        <div class="d-flex flex-column gap-1">
+          <label class="small fw-semibold text-uppercase text-secondary">Priorizar:</label>
+          <select id="route-priority" class="form-select form-select-sm border">
+            <option value="distance">Distancia mínima</option>
+            <option value="time">Ventanas horarias</option>
+            <option value="priority">Prioridad cliente</option>
+            <option value="balanced" selected>Balanceado</option>
+          </select>
+        </div>
+        <div class="d-flex flex-column gap-1">
+          <label class="small fw-semibold text-uppercase text-secondary">Hora salida:</label>
+          <input type="time" id="route-departure" value="06:00" class="form-control form-control-sm border" />
+        </div>
+        <button id="runRouteBtn" class="btn btn-primary shadow-sm"><i class="fas fa-calculator"></i> Calcular Ruta</button>
+      </div>
+      <div class="row g-4 mb-4">
+        <div class="col-lg-8"><div class="card route-map"><div id="routeMap"></div></div></div>
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-body p-0">
+              <h5 class="px-3 pt-3 mb-0">Paradas (orden optimizado)</h5>
+              <div id="routeStopList"><p class="text-muted text-center py-4 mb-0">Calcule la ruta para ver las paradas.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card route-metrics" id="routeMetrics" style="display:none">
+        <div class="card-body">
+          <h5 class="card-title">Métricas de Ruta</h5>
+          <div class="metric-row" id="routeMetricsContent"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOAD -->
+    <section id="panel-load" class="panel">
+      <h2>Optimización de Carga</h2>
+      <div class="d-flex gap-3 flex-wrap align-items-end bg-white rounded-3 shadow-sm border p-3 mb-4">
+        <div class="d-flex flex-column gap-1">
+          <label class="small fw-semibold text-uppercase text-secondary">Modo carga:</label>
+          <select id="load-mode" class="form-select form-select-sm border">
+            <option value="reference">Por referencia (agrupado)</option>
+            <option value="client">Por cliente</option>
+            <option value="hybrid" selected>Híbrido (balanceado)</option>
+          </select>
+        </div>
+        <div class="d-flex flex-column gap-1">
+          <label class="small fw-semibold text-uppercase text-secondary">Vehículo:</label>
+          <select id="load-vehicle" class="form-select form-select-sm border">
+            <option value="standard">Camión 13.6m (33 pallets)</option>
+            <option value="medium">Camión 10m (24 pallets)</option>
+            <option value="small">Camión 7m (16 pallets)</option>
+          </select>
+        </div>
+        <button id="runLoadBtn" class="btn btn-primary shadow-sm"><i class="fas fa-calculator"></i> Calcular Carga</button>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Vista Superior del Camión</h5>
+              <div class="truck-labels"><span class="label-front">Cabina</span><span class="label-rear">Puerta</span></div>
+              <div id="truckTopView" class="truck-view"><p class="text-muted text-center py-4 mb-0">Calcule la carga para ver la disposición.</p></div>
+              <div class="truck-legend" id="truckLegend"></div>
+            </div>
+          </div>
+          <div class="card mt-4">
+            <div class="card-body py-3">
+              <h5 class="card-title small mb-2">Métricas de Carga</h5>
+              <div id="loadMetricsContent"><p class="text-muted text-center py-3 mb-0">Calcule la carga para ver métricas.</p></div>
+            </div>
+          </div>
+          <div class="card mt-4">
+            <div class="card-body">
+              <h5 class="card-title">Detalle de Palets por Parada</h5>
+              <div id="loadPalletList"><p class="text-muted text-center py-4 mb-0">Calcule la carga para ver el detalle.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Vista Lateral</h5>
+              <canvas id="truckSideCanvas" width="600" height="200" class="w-100"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVERSE LOGISTICS -->
+    <section id="panel-reverselog" class="panel">
+      <h2>Logística Inversa</h2>
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Elementos Retornables a Recoger</h5>
+              <div id="revList"><p class="text-muted text-center py-4 mb-0">Configure los retornos en la pestaña Datos.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Integración en Ruta</h5>
+              <div id="revIntegration"><p class="text-muted text-center py-4 mb-0">Calcule la ruta para ver la integración.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Métricas de Retorno</h5>
+              <div id="revMetrics"><p class="text-muted text-center py-4 mb-0">Calcule la ruta para ver métricas de retorno.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECOMMENDATIONS -->
+    <section id="panel-recommendations" class="panel">
+      <h2>Recomendaciones Automáticas</h2>
+      <div class="mb-4">
+        <button id="generateRecsBtn" class="btn btn-primary shadow-sm"><i class="fas fa-wand-magic-sparkles"></i> Generar Recomendaciones</button>
+      </div>
+      <div id="recommendationsList"><p class="text-muted text-center py-5 mb-0">Genere recomendaciones para ver el análisis.</p></div>
+    </section>
+
+    <!-- DATA -->
+    <section id="panel-data" class="panel">
+      <h2>Gestión de Datos</h2>
+      <div class="d-flex gap-3 flex-wrap align-items-center bg-white rounded-3 shadow-sm border p-3 mb-3">
+        <button id="loadSampleBtn" class="btn btn-primary shadow-sm"><i class="fas fa-download"></i> Cargar Datos de Ejemplo</button>
+        <span class="text-secondary opacity-50">|</span>
+        <label class="btn btn-sm mb-0">
+          Importar CSV Clientes <input type="file" id="csvClientInput" accept=".csv" hidden />
+        </label>
+        <label class="btn btn-sm mb-0">
+          Importar CSV Productos <input type="file" id="csvProductInput" accept=".csv" hidden />
+        </label>
+      </div>
+      <div class="d-inline-flex gap-1 bg-body-tertiary p-1 rounded mb-3">
+        <button class="data-tab active" data-dtab="clients"><i class="fas fa-users"></i> Clientes</button>
+        <button class="data-tab" data-dtab="products"><i class="fas fa-box"></i> Productos</button>
+        <button class="data-tab" data-dtab="orders"><i class="fas fa-clipboard-list"></i> Pedidos</button>
+        <button class="data-tab" data-dtab="returns"><i class="fas fa-undo"></i> Retornos</button>
+      </div>
+      <div id="dataTableContainer" class="card rounded-3 border p-0"></div>
+    </section>
+
+  </main>
+</div>
+
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-dialog">
+    <div class="modal-content" id="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title fs-5"></h3>
+        <button id="modal-close" class="btn-close" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/route.js"></script>
+<script src="js/load.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

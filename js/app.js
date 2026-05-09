@@ -1,6 +1,7 @@
 const APP = {};
 
 APP.state = {
+  userRole: null,
   currentTab: 'dashboard',
   currentDataTab: 'clients',
   routeResult: null,
@@ -11,12 +12,57 @@ APP.state = {
   charts: {}
 };
 
+APP.rolePermissions = {
+  warehouse: { tabs: ['routes', 'load', 'reverselog', 'recommendations', 'data'] },
+  carrier:   { tabs: ['routes', 'reverselog'] },
+  admin:     { tabs: ['dashboard', 'routes', 'load', 'reverselog', 'recommendations', 'data'] }
+};
+
+APP.getRoleFromURL = function() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('role');
+};
+
 APP.init = function() {
+  const role = APP.getRoleFromURL();
+  if (!role || !['warehouse','carrier','admin'].includes(role)) {
+    window.location.href = 'index.html';
+    return;
+  }
+  APP.state.userRole = role;
+  APP.applyRolePermissions();
   APP.bindTabs();
   APP.bindDataTabs();
   APP.bindButtons();
   APP.renderDataTable('clients');
   APP.updateDashboard();
+  const roleLabels = { warehouse:'Almacén', carrier:'Transportista', admin:'Admin' };
+  setTimeout(() => showToast(`${roleLabels[role]} — has iniciado sesión`, false), 400);
+};
+
+APP.applyRolePermissions = function() {
+  const perm = APP.rolePermissions[APP.state.userRole];
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.style.display = perm.tabs.includes(tab.dataset.tab) ? '' : 'none';
+  });
+  document.querySelectorAll('.panel').forEach(panel => {
+    const tabName = panel.id.replace('panel-', '');
+    if (!perm.tabs.includes(tabName)) {
+      panel.classList.remove('active');
+    }
+  });
+  const activeTab = document.querySelector('.tab.active');
+  if (!activeTab || !perm.tabs.includes(activeTab.dataset.tab)) {
+    const first = document.querySelector(`.tab[data-tab="${perm.tabs[0]}"]`);
+    if (first) first.click();
+  }
+  if (APP.state.userRole === 'carrier') {
+    document.getElementById('importBtn').style.display = 'none';
+    document.getElementById('optimizeBtn').style.display = 'none';
+  } else {
+    document.getElementById('importBtn').style.display = '';
+    document.getElementById('optimizeBtn').style.display = '';
+  }
 };
 
 APP.bindTabs = function() {
@@ -49,6 +95,8 @@ APP.bindDataTabs = function() {
 APP.bindButtons = function() {
   document.getElementById('optimizeBtn').addEventListener('click', APP.runFullOptimization);
   document.getElementById('runRouteBtn').addEventListener('click', APP.runRouteOptimization);
+  document.getElementById('editRouteBtn').addEventListener('click', APP.toggleRouteEditMode);
+  document.getElementById('saveRouteBtn').addEventListener('click', APP.saveRouteOrder);
   document.getElementById('runLoadBtn').addEventListener('click', APP.runLoadOptimization);
   document.getElementById('generateRecsBtn').addEventListener('click', APP.generateRecommendations);
   document.getElementById('loadSampleBtn').addEventListener('click', function() {
@@ -75,14 +123,17 @@ APP.bindButtons = function() {
 };
 
 APP.runFullOptimization = function() {
-  APP.runRouteOptimization();
-  setTimeout(() => APP.runLoadOptimization(), 300);
-  setTimeout(() => APP.generateRecommendations(), 600);
+  const perm = APP.rolePermissions[APP.state.userRole];
+  if (perm.tabs.includes('routes')) APP.runRouteOptimization();
+  if (perm.tabs.includes('load')) setTimeout(() => APP.runLoadOptimization(), 300);
+  if (perm.tabs.includes('recommendations')) setTimeout(() => APP.generateRecommendations(), 600);
   document.querySelector('.tab[data-tab="dashboard"]').click();
   showToast('Optimización completada');
 };
 
 APP.runRouteOptimization = function() {
+  const perm = APP.rolePermissions[APP.state.userRole];
+  if (!perm.tabs.includes('routes')) { showToast('No tienes permiso para acceder a rutas.', true); return; }
   if (!DAMM.currentClients || DAMM.currentClients.length === 0) {
     showToast('No hay datos de clientes. Cargue datos primero.', true);
     return;
@@ -98,6 +149,8 @@ APP.runRouteOptimization = function() {
 };
 
 APP.runLoadOptimization = function() {
+  const perm = APP.rolePermissions[APP.state.userRole];
+  if (!perm.tabs.includes('load')) { showToast('No tienes permiso para acceder a carga.', true); return; }
   if (!APP.state.routeResult) {
     APP.runRouteOptimization();
     setTimeout(() => APP.runLoadOptimization(), 200);
@@ -114,26 +167,160 @@ APP.runLoadOptimization = function() {
 };
 
 APP.displayRouteResult = function(result) {
+  document.getElementById('editRouteBtn').style.display = '';
+  document.getElementById('saveRouteBtn').style.display = 'none';
+  document.getElementById('routeEditBadge').style.display = 'none';
+  document.getElementById('runRouteBtn').disabled = false;
   const list = document.getElementById('routeStopList');
+  list._editMode = false;
   let html = '';
   result.stops.forEach((s, i) => {
     const priColor = ROUTE.getPriorityColor(s.priority);
     const twClass = s.priority <= 1 ? 'high-priority' : '';
-    html += `<div class="stop-item ${twClass}">
+    html += `<div class="stop-item ${twClass}" draggable="false" data-stop-idx="${i}">
+      <span class="stop-drag-handle"><i class="fas fa-grip-vertical"></i></span>
       <span class="stop-order">${i+1}</span>
       <span class="stop-name">${s.name} <span style="font-size:.7rem;color:${priColor}">(P${s.priority})</span></span>
       <span class="stop-time">${s.arrivalTime}-${s.departureTime} <span style="font-size:.7rem;color:var(--text-light)">[${s.timeFrom}-${s.timeTo}]</span></span>
     </div>`;
   });
   list.innerHTML = html;
+  APP.attachDragEvents();
 
   document.getElementById('routeMetrics').style.display = 'block';
+  APP.updateRouteMetrics(result);
+};
+
+APP.updateRouteMetrics = function(result) {
   document.getElementById('routeMetricsContent').innerHTML = `
     <div class="metric"><span class="val">${result.totalStops}</span><span class="lbl">Paradas</span></div>
     <div class="metric"><span class="val">${result.totalDistance} km</span><span class="lbl">Distancia Total</span></div>
     <div class="metric"><span class="val">${result.totalTime} min</span><span class="lbl">Tiempo Estimado</span></div>
     <div class="metric"><span class="val">${Math.round(result.totalDistance / result.totalStops)} km</span><span class="lbl">Media/Parada</span></div>
   `;
+};
+
+APP.attachDragEvents = function() {
+  const list = document.getElementById('routeStopList');
+  let draggedEl = null;
+  list.querySelectorAll('.stop-item').forEach(item => {
+    item.addEventListener('dragstart', function(e) {
+      draggedEl = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      draggedEl = null;
+      list.querySelectorAll('.stop-item').forEach(el => el.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      list.querySelectorAll('.stop-item').forEach(el => el.classList.remove('drag-over'));
+      if (this !== draggedEl) this.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', function() {
+      this.classList.remove('drag-over');
+    });
+    item.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+      if (draggedEl && this !== draggedEl) {
+        const parent = list;
+        const items = [...parent.querySelectorAll('.stop-item')];
+        const fromIdx = items.indexOf(draggedEl);
+        const toIdx = items.indexOf(this);
+        if (fromIdx < toIdx) {
+          this.insertAdjacentElement('afterend', draggedEl);
+        } else {
+          this.insertAdjacentElement('beforebegin', draggedEl);
+        }
+        APP.refreshStopNumbers();
+      }
+    });
+  });
+};
+
+APP.refreshStopNumbers = function() {
+  const list = document.getElementById('routeStopList');
+  list.querySelectorAll('.stop-item .stop-order').forEach((el, i) => {
+    el.textContent = i + 1;
+  });
+};
+
+APP.toggleRouteEditMode = function() {
+  const list = document.getElementById('routeStopList');
+  const editBtn = document.getElementById('editRouteBtn');
+  const saveBtn = document.getElementById('saveRouteBtn');
+  const badge = document.getElementById('routeEditBadge');
+  const isEditing = list._editMode;
+  list._editMode = !isEditing;
+  if (!isEditing) {
+    list.querySelectorAll('.stop-item').forEach(el => el.draggable = true);
+    editBtn.style.display = 'none';
+    saveBtn.style.display = '';
+    badge.style.display = '';
+  } else {
+    list.querySelectorAll('.stop-item').forEach(el => el.draggable = false);
+    editBtn.style.display = '';
+    saveBtn.style.display = 'none';
+    badge.style.display = 'none';
+  }
+};
+
+APP.recalcRouteOrder = function(stops, depTime) {
+  const depMins = ROUTE.timeToMins(depTime);
+  let prev = { lat: DAMM.currentWarehouse.lat, lng: DAMM.currentWarehouse.lng };
+  let prevTime = depMins;
+  let totalDist = 0;
+  let totalTime = 0;
+  const recalc = stops.map((s, i) => {
+    const dist = ROUTE.haversine(prev.lat, prev.lng, s.lat, s.lng);
+    const travel = ROUTE.calcTravelTime(dist);
+    const arrival = i === 0 ? depMins + travel : Math.max(prevTime + travel, ROUTE.timeToMins(s.timeFrom));
+    const departure = arrival + ROUTE.serviceTime;
+    prev = s;
+    prevTime = departure;
+    totalDist += dist;
+    totalTime += travel + ROUTE.serviceTime;
+    return { ...s, distFromPrev: Math.round(dist * 10) / 10, arrivalTime: ROUTE.minsToTime(arrival), departureTime: ROUTE.minsToTime(departure) };
+  });
+  const returnDist = ROUTE.haversine(prev.lat, prev.lng, DAMM.currentWarehouse.lat, DAMM.currentWarehouse.lng);
+  totalTime += ROUTE.calcTravelTime(returnDist);
+  return {
+    stops: recalc,
+    totalDistance: Math.round((totalDist + returnDist) * 10) / 10,
+    totalDistanceNoReturn: Math.round(totalDist * 10) / 10,
+    totalTime: Math.round(totalTime),
+    totalStops: recalc.length,
+    returnDistance: Math.round(returnDist * 10) / 10
+  };
+};
+
+APP.saveRouteOrder = function() {
+  const list = document.getElementById('routeStopList');
+  const newOrder = [];
+  list.querySelectorAll('.stop-item').forEach(el => {
+    const idx = parseInt(el.dataset.stopIdx);
+    newOrder.push(APP.state.routeResult.stops[idx]);
+  });
+  const dep = document.getElementById('route-departure').value || '06:00';
+  const newResult = APP.recalcRouteOrder(newOrder, dep);
+  APP.state.routeResult = newResult;
+  APP.exitRouteEditMode();
+  APP.displayRouteResult(newResult);
+  APP.initMap(newResult);
+  showToast('Ruta reordenada correctamente');
+};
+
+APP.exitRouteEditMode = function() {
+  const list = document.getElementById('routeStopList');
+  list._editMode = false;
+  list.querySelectorAll('.stop-item').forEach(el => el.draggable = false);
+  document.getElementById('editRouteBtn').style.display = '';
+  document.getElementById('saveRouteBtn').style.display = 'none';
+  document.getElementById('routeEditBadge').style.display = 'none';
 };
 
 APP.displayLoadResult = function(result) {
@@ -187,7 +374,7 @@ APP.initMap = function(result) {
   if (APP.state.routeLayer) APP.state.map.removeLayer(APP.state.routeLayer);
   if (APP.state.markerLayer) APP.state.map.removeLayer(APP.state.markerLayer);
 
-  const wIcon = L.divIcon({ html: '<div style="background:#0051a0;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)">D</div>', iconSize: [24,24], iconAnchor: [12,12], className: '' });
+  const wIcon = L.divIcon({ html: '<div style="background:#C41230;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)">D</div>', iconSize: [24,24], iconAnchor: [12,12], className: '' });
   L.marker([DAMM.currentWarehouse.lat, DAMM.currentWarehouse.lng], { icon: wIcon }).addTo(APP.state.map).bindTooltip('DDI Mollet');
 
   const markers = [];
@@ -207,7 +394,7 @@ APP.initMap = function(result) {
 
   latlngs.push([DAMM.currentWarehouse.lat, DAMM.currentWarehouse.lng]);
 
-  APP.state.routeLayer = L.polyline(latlngs, { color: '#0051a0', weight: 3, opacity: 0.7, dashArray: '8, 8' }).addTo(APP.state.map);
+  APP.state.routeLayer = L.polyline(latlngs, { color: '#C41230', weight: 3, opacity: 0.7, dashArray: '8, 8' }).addTo(APP.state.map);
   APP.state.markerLayer = L.layerGroup(markers).addTo(APP.state.map);
   APP.state.map.fitBounds(APP.state.routeLayer.getBounds().pad(0.15));
 
@@ -274,6 +461,8 @@ APP.renderRevLogistics = function(routeResult) {
 };
 
 APP.generateRecommendations = function() {
+  const perm = APP.rolePermissions[APP.state.userRole];
+  if (!perm.tabs.includes('recommendations')) { showToast('No tienes permiso para acceder a recomendaciones.', true); return; }
   const list = document.getElementById('recommendationsList');
   if (!APP.state.routeResult && !APP.state.loadResult) {
     APP.runFullOptimization();
@@ -504,7 +693,7 @@ APP.renderCharts = function() {
       type: 'doughnut',
       data: {
         labels: Object.keys(channelCount),
-        datasets: [{ data: Object.values(channelCount), backgroundColor: ['#0051a0','#f5a623','#28a745','#dc3545','#6f42c1'] }]
+        datasets: [{ data: Object.values(channelCount), backgroundColor: ['#C41230','#D4A017','#16A34A','#2563EB','#7C3AED'] }]
       },
       options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
     });
@@ -519,7 +708,7 @@ APP.renderCharts = function() {
       type: 'doughnut',
       data: {
         labels: Object.keys(typeCount),
-        datasets: [{ data: Object.values(typeCount), backgroundColor: ['#e74c3c','#3498db','#2ecc71'] }]
+        datasets: [{ data: Object.values(typeCount), backgroundColor: ['#DC2626','#2563EB','#16A34A'] }]
       },
       options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
     });
@@ -533,7 +722,7 @@ APP.renderCharts = function() {
       type: 'bar',
       data: {
         labels: Object.keys(shiftCount),
-        datasets: [{ label: 'Clientes por turno', data: Object.values(shiftCount), backgroundColor: ['#0051a0','#f5a623','#6f42c1'] }]
+        datasets: [{ label: 'Clientes por turno', data: Object.values(shiftCount), backgroundColor: ['#C41230','#D4A017','#7C3AED'] }]
       },
       options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
     });
@@ -597,11 +786,11 @@ function showToast(msg, isError) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'toast';
-    toast.style.cssText = 'position:fixed;bottom:30px;right:30px;background:#333;color:#fff;padding:12px 20px;border-radius:8px;font-size:.85rem;z-index:9999;opacity:0;transition:opacity .3s;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,.2)';
+    toast.style.cssText = 'position:fixed;bottom:30px;right:30px;background:#2D2D2D;color:#fff;padding:12px 20px;border-radius:8px;font-size:.85rem;z-index:9999;opacity:0;transition:opacity .3s;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,.2)';
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
-  toast.style.background = isError ? '#dc3545' : '#333';
+  toast.style.background = isError ? '#C41230' : '#2D2D2D';
   toast.style.opacity = '1';
   clearTimeout(toast._hide);
   toast._hide = setTimeout(() => { toast.style.opacity = '0'; }, 3500);

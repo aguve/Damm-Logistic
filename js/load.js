@@ -6,7 +6,7 @@ LOAD.vehicleConfigs = {
   small: { name:"Camión 7m", palletPositions:16, length:7, width:2.45, layers:2 }
 };
 
-LOAD.productColors = { ZFIN:'#e74c3c', ZPLV:'#3498db', UMA:'#2ecc71' };
+LOAD.productColors = { ZFIN:'#DC2626', ZPLV:'#2563EB', UMA:'#16A34A' };
 LOAD.productNames = { ZFIN:'Botella Vidrio', ZPLV:'Lata/Aluminio', UMA:'Otros' };
 
 LOAD.optimize = function(routeStops, orders, products, vehicleKey, mode) {

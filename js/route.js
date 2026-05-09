@@ -138,7 +138,7 @@ ROUTE.optimize = function(clients, orders, warehouse, mode, departureTime) {
 };
 
 ROUTE.getPriorityColor = function(p) {
-  if (p <= 1) return '#dc3545';
-  if (p <= 2) return '#ffc107';
-  return '#28a745';
+  if (p <= 1) return '#DC2626';
+  if (p <= 2) return '#D4A017';
+  return '#16A34A';
 };

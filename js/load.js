@@ -1,16 +1,16 @@
 const LOAD = {};
 
 LOAD.vehicleConfigs = {
-  truck8: { name:"Camión 8 palets", palletPositions:8, length:4.0, width:2.1, layers:2 },
-  truck6: { name:"Camión 6 palets", palletPositions:6, length:3.5, width:1.8, layers:2 },
-  van3: { name:"Furgoneta 3 palets", palletPositions:3, length:2.5, width:1.5, layers:1 }
+  standard: { name:"Camión 13.6m", palletPositions:33, length:13.6, width:2.45, layers:3 },
+  medium: { name:"Camión 10m", palletPositions:24, length:10, width:2.45, layers:3 },
+  small: { name:"Camión 7m", palletPositions:16, length:7, width:2.45, layers:2 }
 };
 
 LOAD.productColors = { ZFIN:'#DC2626', ZPLV:'#2563EB', UMA:'#16A34A' };
 LOAD.productNames = { ZFIN:'Botella Vidrio', ZPLV:'Lata/Aluminio', UMA:'Otros' };
 
 LOAD.optimize = function(routeStops, orders, products, vehicleKey, mode) {
-  const vehicle = LOAD.vehicleConfigs[vehicleKey] || LOAD.vehicleConfigs.truck8;
+  const vehicle = LOAD.vehicleConfigs[vehicleKey] || LOAD.vehicleConfigs.standard;
   if (!routeStops || routeStops.length === 0) return null;
 
   const revStops = [...routeStops].reverse();

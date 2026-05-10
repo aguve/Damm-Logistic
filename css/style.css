@@ -870,13 +870,14 @@ body {
   background: rgba(255, 255, 255, 0.5);
 }
 
-<<<<<<< HEAD
+
 .data-tab.active { background: #fff; color: var(--damm-red); box-shadow: var(--shadow-sm); }
 
-.data-table-container .table-wrap { max-height: 520px; overflow-y: auto; }
+.data-table-container .table-wrap { max-height: 520px; overflow-y: auto; overflow-x: auto; }
+.data-table-container .table-wrap table { min-width: max-content; }
 .data-table-container table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 0.82rem; }
-.data-table-container th { background: var(--gray-50); padding: 12px 20px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 2px solid var(--gray-200); position: sticky; top: 0; color: var(--gray-600); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.3px; }
-.data-table-container td { padding: 10px 20px; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+.data-table-container th { background: var(--gray-50); padding: 12px 28px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 2px solid var(--gray-200); position: sticky; top: 0; color: var(--gray-600); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.3px; }
+.data-table-container td { padding: 10px 28px; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
 .data-table-container tr:hover td { background: var(--damm-red-lighter); }
 
 /* ===== MODAL ===== */

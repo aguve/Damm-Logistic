@@ -1,7 +1,6 @@
 :root {
   --damm-red: #C41230;
   --damm-red-dark: #9E0D26;
-  background: transparent;
   --damm-red-light: #F9E1E5;
   --damm-red-lighter: #FDF0F2;
   --damm-gold: #D4A017;
@@ -9,11 +8,22 @@
   --damm-gold-light: #FDF3D0;
   --damm-dark: #1A1A1A;
   --damm-dark-2: #2D2D2D;
-  box-shadow: none;
+
+  --gray-50: #F9FAFB;
   --gray-100: #F3F4F6;
   --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --gray-700: #374151;
   --gray-800: #1F2937;
   --gray-900: #111827;
+
+  --text-light: #6B7280;
+  --danger: #DC2626;
+  --warning: #F59E0B;
+  --success: #16A34A;
 
   --zfin: #DC2626;
   --zplv: #2563EB;
@@ -211,10 +221,6 @@
 
 .role-card-action i {
   font-size: 0.7rem;
-}
-
-#role-screen {
-  z-index: 9999;
 }
 
 body {

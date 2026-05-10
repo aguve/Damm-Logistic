@@ -1,7 +1,6 @@
 :root {
   --damm-red: #C41230;
   --damm-red-dark: #9E0D26;
-  background: transparent;
   --damm-red-light: #F9E1E5;
   --damm-red-lighter: #FDF0F2;
   --damm-gold: #D4A017;
@@ -9,11 +8,22 @@
   --damm-gold-light: #FDF3D0;
   --damm-dark: #1A1A1A;
   --damm-dark-2: #2D2D2D;
-  box-shadow: none;
+
+  --gray-50: #F9FAFB;
   --gray-100: #F3F4F6;
   --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --gray-700: #374151;
   --gray-800: #1F2937;
   --gray-900: #111827;
+
+  --text-light: #6B7280;
+  --danger: #DC2626;
+  --warning: #F59E0B;
+  --success: #16A34A;
 
   --zfin: #DC2626;
   --zplv: #2563EB;
@@ -43,6 +53,8 @@
   align-items: center;
   justify-content: center;
   transition: opacity 0.5s ease, transform 0.5s ease;
+  overflow-y: auto;
+  background: #1A1A1A;
 }
 
 .role-bg {
@@ -209,10 +221,6 @@
 
 .role-card-action i {
   font-size: 0.7rem;
-}
-
-#role-screen {
-  z-index: 9999;
 }
 
 body {
@@ -1012,6 +1020,44 @@ body {
   border-radius: var(--radius);
 }
 
+/* ===== MOBILE FLOATING CHANGE-ROLE BUTTON ===== */
+.btn-mobile-switch-role {
+  position: fixed;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 50px;
+  background: var(--damm-gold);
+  color: #1A1A1A;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(212, 160, 23, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: var(--font);
+}
+.btn-mobile-switch-role i {
+  font-size: 1rem;
+}
+.btn-mobile-switch-role:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 28px rgba(212, 160, 23, 0.65);
+  color: #1A1A1A;
+}
+@media (max-width: 991.98px) {
+  .btn-mobile-switch-role {
+    display: flex;
+    bottom: 24px;
+    right: 50%;
+    transform: translateX(50%);
+  }
+  .btn-mobile-switch-role:hover {
+    transform: translateX(50%) scale(1.05);
+  }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 992px) {
   #sidebar {
@@ -1061,7 +1107,14 @@ body {
   }
 
   .sidebar-switch-role {
-    display: none;
+    font-size: 0;
+    gap: 0;
+  }
+  .sidebar-switch-role i {
+    font-size: 0.9rem;
+  }
+  .sidebar-switch-role:hover {
+    color: var(--damm-gold);
   }
 
   #content {
@@ -1092,11 +1145,32 @@ body {
   }
 
   .sidebar-switch-role {
-    display: none;
+    font-size: 0;
+    gap: 0;
+  }
+  .sidebar-switch-role i {
+    font-size: 0.9rem;
+  }
+  .sidebar-switch-role:hover {
+    color: var(--damm-gold);
   }
 
   #content {
     margin-left: 48px;
     padding: 16px 12px !important;
+  }
+}
+
+/* Mobile scroll fix for role cards */
+@media (max-height: 700px), (max-width: 575.98px) {
+  #role-screen {
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  .role-cards::after {
+    content: '';
+    display: block;
+    height: 40px;
+    width: 100%;
   }
 }
